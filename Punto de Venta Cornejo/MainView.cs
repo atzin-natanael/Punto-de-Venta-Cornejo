@@ -1,9 +1,10 @@
-﻿using System.Data;
+﻿using Microsoft.Data.Sqlite;
+using System.Data;
 using System.Data.OleDb;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using Microsoft.Data.Sqlite;
+using static System.ComponentModel.Design.ObjectSelectorEditor;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace Punto_de_Venta_Cornejo
@@ -11,24 +12,66 @@ namespace Punto_de_Venta_Cornejo
     public partial class MainView : Form
     {
         int idCodigos = 0;
+        bool editando = false;
         DataTable dt = new DataTable();
+        decimal descuentoCliente = 20.0m;
         public MainView()
         {
             InitializeComponent();
+            LoadConfig();
         }
+        public void LoadConfig()
+        {
+            string filePath = GlobalSettings.Instance.PathConfig + "DB.txt"; // Ruta de tu archivo de texto
+            List<string> lineas = new List<string>();
 
+            // Verificar si el archivo existe
+            if (File.Exists(filePath))
+            {
+                // Leer todas las líneas del archivo
+                using (StreamReader sr = new StreamReader(filePath))
+                {
+                    string linea;
+                    GlobalSettings.Instance.Config = new List<string>();
+                    while ((linea = sr.ReadLine()) != null)
+                    {
+                        GlobalSettings.Instance.Config.Add(linea);
+                    }
+
+                }
+                GlobalSettings.Instance.Ip = GlobalSettings.Instance.Config[0];
+                GlobalSettings.Instance.Puerto = GlobalSettings.Instance.Config[1];
+                GlobalSettings.Instance.Direccion = GlobalSettings.Instance.Config[2];
+                GlobalSettings.Instance.User = GlobalSettings.Instance.Config[3];
+                GlobalSettings.Instance.Pw = GlobalSettings.Instance.Config[4];
+                GlobalSettings.Instance.StringConnection =
+                    "User=" + GlobalSettings.Instance.User + ";" +
+                    "Password=" + GlobalSettings.Instance.Pw + ";" +
+                    "Database=" + GlobalSettings.Instance.Direccion + ";" +
+                    "DataSource=" + GlobalSettings.Instance.Ip + ";" +
+                    "Port=" + GlobalSettings.Instance.Puerto + ";" +
+                    "Dialect=3;" +
+                    "Charset=UTF8;";
+            }
+            else
+            {
+                MessageBox.Show("Archivo de Configuracion no encontrado", "DB.txt", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+        }
         private void Form1_Load(object sender, EventArgs e)
         {
             txtFolio.Text = "FOLIO001";
-            cbDescuento.SelectedIndex = 0;
+            cbDescuento.SelectedIndex = 1;
             cbCajero.SelectedIndex = 0;
             dataCodigos.RowTemplate.Height = 40;
             dt.Columns.Add("Id", typeof(int));
             dt.Columns.Add("Codigo", typeof(string));
             dt.Columns.Add("Descripcion", typeof(string));
-            dt.Columns.Add("Unidades", typeof(int));
+            dt.Columns.Add("Unidades", typeof(decimal));
             dt.Columns.Add("Precio", typeof(decimal));
             dt.Columns.Add("Descuento", typeof(decimal));
+            dt.Columns.Add("Importe", typeof(decimal));
             dataCodigos.AutoGenerateColumns = false;
             dataCodigos.DataSource = dt;
 
@@ -38,6 +81,7 @@ namespace Punto_de_Venta_Cornejo
             Column4.DataPropertyName = "Unidades";
             Column5.DataPropertyName = "Precio";
             Column6.DataPropertyName = "Descuento";
+            Column7.DataPropertyName = "Importe";
 
         }
 
@@ -66,15 +110,31 @@ namespace Punto_de_Venta_Cornejo
         }
         public void AgregarFila(decimal Precio, decimal Descuento)
         {
-
+            if (dataCodigos.RowCount > 0)
+            {
+                DataGridViewRow fila = dataCodigos.Rows.Cast<DataGridViewRow>().FirstOrDefault(r => r.Cells[1].Value?.ToString() == txtCodigo.Text);
+                if (fila != null)
+                {
+                    decimal unidadesExistentes = Convert.ToDecimal(fila.Cells[3].Value);
+                    decimal nuevasUnidades = decimal.Parse(txtUnidades.Text);
+                    fila.Cells[3].Value = unidadesExistentes + nuevasUnidades;
+                    int index = fila.Index;
+                    dataCodigos.FirstDisplayedScrollingRowIndex = index;
+                    dataCodigos.ClearSelection();
+                    dataCodigos.Rows[index].Cells[1].Selected = true;
+                    dataCodigos.Rows[index].Cells[3].Selected = true;
+                    return; // Salir del método para evitar agregar una nueva fila
+                }
+            }
             idCodigos++;
             DataRow row = dt.NewRow();
             row["Id"] = idCodigos;
             row["Codigo"] = txtCodigo.Text;
             row["Descripcion"] = txtDescripcion.Text;
-            row["Unidades"] = int.Parse(txtUnidades.Text);
+            row["Unidades"] = decimal.Parse(txtUnidades.Text);
             row["Precio"] = Precio;
             row["Descuento"] = Descuento;
+            row["Importe"] = Precio * decimal.Parse(txtUnidades.Text);
             //row["Total"] = int.Parse(txtUnidades.Text) * Precio;
             dt.Rows.Add(row);
         }
@@ -87,6 +147,25 @@ namespace Punto_de_Venta_Cornejo
             {
                 if (txtCodigo.Text != string.Empty)
                 {
+                    string query = $"SELECT ARTICULO_ID FROM CLAVES_ARTICULOS WHERE CLAVE_ARTICULO = '{txtCodigo.Text}';";
+                    string articuloId = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
+                    if (articuloId == null)
+                    {
+                        MessageBox.Show("Código no encontrado", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        txtCodigo.Select(0, txtCodigo.TextLength);
+                        txtCodigo.Focus();
+                        return;
+                    }
+                    query = $"SELECT NOMBRE FROM ARTICULOS WHERE ARTICULO_ID = '{articuloId}';";
+                    string descripcion = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
+                    txtDescripcion.Text = descripcion;
+
+                    query = $"SELECT CONTENIDO_EMPAQUE FROM CLAVES_ARTICULOS WHERE CLAVE_ARTICULO = '{txtCodigo.Text}';";
+                    string contenidoEmpaque = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
+                    txtUnidades.Text = contenidoEmpaque;
+                    query = $"SELECT CLAVE_ARTICULO FROM CLAVES_ARTICULOS WHERE ARTICULO_ID = '{articuloId}' AND ROL_CLAVE_ART_ID = '17';";
+                    string clavePrincipal = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
+                    txtCodigo.Text = clavePrincipal;
                     e.SuppressKeyPress = true;
                     txtUnidades.Focus();
                 }
@@ -95,6 +174,7 @@ namespace Punto_de_Venta_Cornejo
                     e.SuppressKeyPress = true;
                     txtDescripcion.Focus();
                 }
+
             }
         }
 
@@ -104,13 +184,35 @@ namespace Punto_de_Venta_Cornejo
             {
                 if (txtUnidades.Text != string.Empty)
                 {
-                    decimal precio = 0;
-                    decimal descuento = 0;
-                    AgregarFila(precio, descuento);
-                    UpdateLocalDB(precio, descuento);
+                    string query = $"SELECT ARTICULO_ID FROM CLAVES_ARTICULOS WHERE CLAVE_ARTICULO = '{txtCodigo.Text}';";
+                    string articuloId = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
+                    if (articuloId == null) return;
+                    query = $"SELECT PRECIO FROM PRECIOS_ARTICULOS WHERE ARTICULO_ID = '{articuloId}' AND PRECIO_EMPRESA_ID = '42';";
+                    decimal preciolista = decimal.Parse(GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query));
+                    query = $"SELECT IMPUESTO_ID FROM IMPUESTOS_ARTICULOS WHERE ARTICULO_ID = '{articuloId}';";
+                    string impuestoId = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
+                    query = $"SELECT PCTJE_IMPUESTO FROM IMPUESTOS WHERE IMPUESTO_ID = '{impuestoId}';";
+                    int impuesto = int.Parse(GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query));
+                    decimal precio = preciolista;
+                    decimal descuentoArticulo = decimal.Parse(GetFireBirdValue.GetDiscountByArticle(articuloId) ?? "-1");
+                    if(descuentoArticulo == -1)
+                    {
+                        descuentoArticulo = decimal.Parse(descuentoCliente.ToString("0.##"));
+                    }
+                    else
+                    {
+                        decimal clienteDescDecimal = (descuentoCliente != decimal.MinusOne) ? descuentoCliente / 100m : 0m;
+                        decimal articuloDescDecimal = (descuentoArticulo != decimal.MinusOne) ? descuentoArticulo / 100m : 0m;
+
+                        decimal _descuentoTotal = 1 - ((1 - clienteDescDecimal) * (1 - articuloDescDecimal));
+                        descuentoArticulo = decimal.Parse((_descuentoTotal * 100m).ToString("0.##")); // Devuelve en porcentaje
+                    }
+                    AgregarFila(precio, descuentoArticulo);
+                    UpdateLocalDB(precio, descuentoArticulo);
                     dataCodigos.ClearSelection();
                     dataCodigos.Rows[dataCodigos.RowCount - 1].Cells[1].Selected = true;
                     dataCodigos.Rows[dataCodigos.RowCount - 1].Cells[3].Selected = true;
+                    dataCodigos.FirstDisplayedScrollingRowIndex = dataCodigos.RowCount - 1;
                     txtCodigo.Clear();
                     txtDescripcion.Clear();
                     txtUnidades.Clear();
@@ -181,10 +283,10 @@ namespace Punto_de_Venta_Cornejo
                     cmd.Parameters.AddWithValue("@Id", idCodigos);
                     cmd.Parameters.AddWithValue("@Codigo", txtCodigo.Text);
                     cmd.Parameters.AddWithValue("@Descripcion", txtDescripcion.Text);
-                    cmd.Parameters.AddWithValue("@Unidades", int.Parse(txtUnidades.Text));
+                    cmd.Parameters.AddWithValue("@Unidades", decimal.Parse(txtUnidades.Text));
                     cmd.Parameters.AddWithValue("@Precio", Precio);
                     cmd.Parameters.AddWithValue("@Descuento", Descuento);
-                    cmd.Parameters.AddWithValue("@Importe", Precio * int.Parse(txtUnidades.Text));
+                    cmd.Parameters.AddWithValue("@Importe", Precio * decimal.Parse(txtUnidades.Text));
                     cmd.ExecuteNonQuery();
                 }
                 conect.Close();
@@ -195,9 +297,18 @@ namespace Punto_de_Venta_Cornejo
         {
             if (e.Button == MouseButtons.Right && e.RowIndex >= 0 && e.ColumnIndex == 3)
             {
-                if (dataCodigos.Rows[e.RowIndex].Cells[0].Value == null)
+                var valor = dataCodigos.Rows[e.RowIndex].Cells[0].Value?.ToString();
+                var valorUnidad = dataCodigos.Rows[e.RowIndex].Cells[3].Value?.ToString();
+                if (string.IsNullOrWhiteSpace(valor) || string.IsNullOrWhiteSpace(valorUnidad))
                 {
+                    MessageBox.Show("La celda está vacía.");
                     return;
+                }
+                if (editando)
+                {
+                    MessageBox.Show("Ya estás editando una celda. Termina la edición antes de continuar.");
+                    return;
+
                 }
                 dataCodigos.ClearSelection();
                 dataCodigos.Rows[e.RowIndex].Cells[1].Selected = true;
@@ -216,8 +327,12 @@ namespace Punto_de_Venta_Cornejo
                     if (args.ClickedItem == modificarUnidades)
                     {
                         menu.Close();
+                        editando = true;
                         dataCodigos.Focus();
                         // 🔥 Habilitar la celda correcta
+                        dataCodigos.Rows[e.RowIndex].Cells[1].Style.BackColor = System.Drawing.Color.Pink;
+                        dataCodigos.Rows[e.RowIndex].Cells[2].Style.BackColor = System.Drawing.Color.Pink;
+                        dataCodigos.Rows[e.RowIndex].Cells[3].Style.BackColor = System.Drawing.Color.Pink;
                         dataCodigos.Rows[e.RowIndex].Cells[3].ReadOnly = false;
 
                         // 🔥 Ponerle el foco para que empiece a editar
@@ -228,6 +343,15 @@ namespace Punto_de_Venta_Cornejo
                     {
                         menu.Close();
                         dataCodigos.Rows.RemoveAt(fila);
+                        using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + txtFolio.Text + ".db;"))
+                        {
+                            conect.Open();
+                            string query = $"DELETE FROM {txtFolio.Text} WHERE Id = @Id;";
+                            SqliteCommand command = new SqliteCommand(query, conect);
+                            command.Parameters.AddWithValue("@Id", id);
+                            command.ExecuteNonQuery();
+                            conect.Close();
+                        }
                     }
                 };
                 menu.Show(Cursor.Position);
@@ -236,7 +360,14 @@ namespace Punto_de_Venta_Cornejo
 
         private void dataCodigos_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
-            using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + txtFolio.Text+ ".db;"))
+            var valor = dataCodigos.Rows[e.RowIndex].Cells[0].Value?.ToString();
+            var valorUnidad = dataCodigos.Rows[e.RowIndex].Cells[3].Value?.ToString();
+            if (string.IsNullOrWhiteSpace(valor) || string.IsNullOrWhiteSpace(valorUnidad))
+            {
+                MessageBox.Show("La celda está vacía.");
+                return;
+            }
+            using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + txtFolio.Text + ".db;"))
             {
                 conect.Open();
                 string query = $"UPDATE {txtFolio.Text} SET Unidades = @valor WHERE Id = '" + dataCodigos.Rows[e.RowIndex].Cells[0].Value + "';";
@@ -245,9 +376,16 @@ namespace Punto_de_Venta_Cornejo
                 command.ExecuteNonQuery();
                 conect.Close();
             }
+            dataCodigos.Rows[e.RowIndex].Cells[1].Style.BackColor = Color.Empty;
+            dataCodigos.Rows[e.RowIndex].Cells[2].Style.BackColor = Color.Empty;
+            dataCodigos.Rows[e.RowIndex].Cells[3].Style.BackColor = Color.Empty;
+            editando = false;
             txtCodigo.Focus();
-            dataCodigos.CurrentCell = null;
-            dataCodigos.ClearSelection();
+            // Evita errores
+            this.BeginInvoke(new Action(() =>
+            {
+                dataCodigos.ClearSelection();
+            }));
 
         }
 
@@ -278,6 +416,59 @@ namespace Punto_de_Venta_Cornejo
                     return;
                 }
             }
+        }
+
+        private void txtUnidades_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (!char.IsControl(e.KeyChar) &&
+            !char.IsDigit(e.KeyChar) &&
+            e.KeyChar != '.')
+            {
+                e.Handled = true;
+            }
+
+            // Evitar dos puntos decimales
+            if (e.KeyChar == '.' && (sender as System.Windows.Forms.TextBox).Text.Contains("."))
+            {
+                e.Handled = true;
+            }
+        }
+        private decimal CalcularDescuentoArticulo(string _articulo_id)
+        {
+            decimal _descuentoPorArticulo = decimal.Parse(GetFireBirdValue.GetDiscountByArticle(_articulo_id) ?? "-1");
+
+            // Calcular el descuento total efectivo usando la fórmula
+            //decimal _descuentoTotal =
+            //1 - (
+            //    (1 - (descuentoPorCliente != decimal.MinusOne ? descuentoPorCliente / 100m : 0m))//Si hay descuento por cliente, se aplica
+            //    *
+            //    (1 - (_descuentoPorArticulo != decimal.MinusOne ? _descuentoPorArticulo : 0m))//Si hay descuento por articulo, se aplica
+            //    );
+            ////Tabla.Rows[Tabla.CurrentCell.RowIndex].Cells[(int)ColTabla.Descuento].Value = _descuentoTotal;
+            //return _descuentoTotal *= 100; // Convertir a porcentaje y mostrar el resultado
+            decimal cliente = (descuentoCliente != decimal.MinusOne) ? descuentoCliente / 100m : 0m;
+            decimal articulo = (_descuentoPorArticulo != decimal.MinusOne) ? _descuentoPorArticulo / 100m : 0m;
+
+            decimal _descuentoTotal = 1 - ((1 - cliente) * (1 - articulo));
+            return _descuentoTotal * 100m; // Devuelve en porcentaje
+
+
+        }
+
+        private void cbDescuento_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //string query = $"SELECT CLIENTE_ID FROM CLAVES_CLIENTES WHERE CLAVE_CLIENTE = {cbDescuento.Text};";
+            //string cliente_id = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
+            //////Obtiene el descuento por cliente una sola vez
+            //descuentoCliente = decimal.Parse(GetFireBirdValue.GetDiscountByClient(cliente_id) ?? "-1");
+        }
+
+        private void cbDescuento_SelectionChangeCommitted(object sender, EventArgs e)
+        {
+            string query = $"SELECT CLIENTE_ID FROM CLAVES_CLIENTES WHERE CLAVE_CLIENTE = '{cbDescuento.Text}';";
+            string cliente_id = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
+            //Obtiene el descuento por cliente una sola vez
+            descuentoCliente = decimal.Parse(GetFireBirdValue.GetDiscountByClient(cliente_id) ?? "-1");
         }
     }
 }

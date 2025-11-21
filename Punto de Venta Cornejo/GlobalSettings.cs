@@ -7,6 +7,7 @@ namespace Punto_de_Venta_Cornejo
     public class GlobalSettings
     {
         private static GlobalSettings instance;
+        public string StringConnection { get; set; }
         public string ConnectionLocalDb { get; set; } = "Data Source=C:\\CapturaDeVentas\\";
         public string Ip { get; set; }
         public string Puerto { get; set; }
@@ -16,6 +17,7 @@ namespace Punto_de_Venta_Cornejo
         public string Pw { get; set; }
         public string Ruta { get; set; }
         public List<string> Config { get; set; }
+        public string PathConfig { get; } = "C:\\ConfigDB\\";
         public int Bd { get; set; }
         public int Trn { get; set; }
         private GlobalSettings()

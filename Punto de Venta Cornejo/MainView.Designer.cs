@@ -30,7 +30,11 @@
         {
             DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle7 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle3 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle4 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle5 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle6 = new DataGridViewCellStyle();
             panelHeader = new Panel();
             cbDescuento = new ComboBox();
             lbDescuento = new Label();
@@ -51,16 +55,17 @@
             pictureBox1 = new PictureBox();
             panelBody = new Panel();
             dataCodigos = new DataGridView();
+            panelTop = new Panel();
+            btnMin = new Button();
+            btnMax = new Button();
+            btnExit = new Button();
             Column1 = new DataGridViewTextBoxColumn();
             Column2 = new DataGridViewTextBoxColumn();
             Column3 = new DataGridViewTextBoxColumn();
             Column4 = new DataGridViewTextBoxColumn();
             Column5 = new DataGridViewTextBoxColumn();
             Column6 = new DataGridViewTextBoxColumn();
-            panelTop = new Panel();
-            btnMin = new Button();
-            btnMax = new Button();
-            btnExit = new Button();
+            Column7 = new DataGridViewTextBoxColumn();
             panelHeader.SuspendLayout();
             panelLateral.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
@@ -97,11 +102,13 @@
             // 
             cbDescuento.Font = new Font("Arial", 15.75F);
             cbDescuento.FormattingEnabled = true;
-            cbDescuento.Items.AddRange(new object[] { "Seleccione una opción...", "20", "30", "37", "40" });
+            cbDescuento.Items.AddRange(new object[] { "Seleccione una opción...", "VARIOS", "V30", "V37", "V40" });
             cbDescuento.Location = new Point(181, 94);
             cbDescuento.Name = "cbDescuento";
             cbDescuento.Size = new Size(278, 32);
             cbDescuento.TabIndex = 8;
+            cbDescuento.SelectedIndexChanged += cbDescuento_SelectedIndexChanged;
+            cbDescuento.SelectionChangeCommitted += cbDescuento_SelectionChangeCommitted;
             // 
             // lbDescuento
             // 
@@ -152,6 +159,7 @@
             txtUnidades.Size = new Size(188, 32);
             txtUnidades.TabIndex = 5;
             txtUnidades.KeyDown += txtUnidades_KeyDown;
+            txtUnidades.KeyPress += txtUnidades_KeyPress;
             // 
             // txtDescripcion
             // 
@@ -307,17 +315,17 @@
             dataGridViewCellStyle2.SelectionForeColor = SystemColors.WindowText;
             dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
             dataCodigos.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
-            dataCodigos.ColumnHeadersHeight = 30;
+            dataCodigos.ColumnHeadersHeight = 50;
             dataCodigos.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            dataCodigos.Columns.AddRange(new DataGridViewColumn[] { Column1, Column2, Column3, Column4, Column5, Column6 });
-            dataGridViewCellStyle3.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle3.BackColor = Color.White;
-            dataGridViewCellStyle3.Font = new Font("Arial", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle3.ForeColor = Color.Black;
-            dataGridViewCellStyle3.SelectionBackColor = Color.FromArgb(255, 255, 192);
-            dataGridViewCellStyle3.SelectionForeColor = Color.Black;
-            dataGridViewCellStyle3.WrapMode = DataGridViewTriState.False;
-            dataCodigos.DefaultCellStyle = dataGridViewCellStyle3;
+            dataCodigos.Columns.AddRange(new DataGridViewColumn[] { Column1, Column2, Column3, Column4, Column5, Column6, Column7 });
+            dataGridViewCellStyle7.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle7.BackColor = Color.White;
+            dataGridViewCellStyle7.Font = new Font("Arial", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle7.ForeColor = Color.Black;
+            dataGridViewCellStyle7.SelectionBackColor = Color.FromArgb(255, 255, 192);
+            dataGridViewCellStyle7.SelectionForeColor = Color.Black;
+            dataGridViewCellStyle7.WrapMode = DataGridViewTriState.False;
+            dataCodigos.DefaultCellStyle = dataGridViewCellStyle7;
             dataCodigos.Dock = DockStyle.Fill;
             dataCodigos.EditMode = DataGridViewEditMode.EditProgrammatically;
             dataCodigos.EnableHeadersVisualStyles = false;
@@ -332,47 +340,6 @@
             dataCodigos.CellEndEdit += dataCodigos_CellEndEdit;
             dataCodigos.CellMouseDown += dataCodigos_CellMouseDown;
             dataCodigos.CellValidating += dataCodigos_CellValidating;
-            // 
-            // Column1
-            // 
-            Column1.Frozen = true;
-            Column1.HeaderText = "Id";
-            Column1.Name = "Column1";
-            // 
-            // Column2
-            // 
-            Column2.Frozen = true;
-            Column2.HeaderText = "Código";
-            Column2.Name = "Column2";
-            Column2.Width = 200;
-            // 
-            // Column3
-            // 
-            Column3.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-            Column3.HeaderText = "Descripción";
-            Column3.Name = "Column3";
-            Column3.SortMode = DataGridViewColumnSortMode.NotSortable;
-            // 
-            // Column4
-            // 
-            Column4.HeaderText = "Unidades";
-            Column4.Name = "Column4";
-            Column4.SortMode = DataGridViewColumnSortMode.NotSortable;
-            Column4.Width = 120;
-            // 
-            // Column5
-            // 
-            Column5.HeaderText = "Precio";
-            Column5.Name = "Column5";
-            Column5.SortMode = DataGridViewColumnSortMode.NotSortable;
-            Column5.Width = 150;
-            // 
-            // Column6
-            // 
-            Column6.HeaderText = "Descuento";
-            Column6.Name = "Column6";
-            Column6.SortMode = DataGridViewColumnSortMode.NotSortable;
-            Column6.Width = 150;
             // 
             // panelTop
             // 
@@ -428,6 +395,61 @@
             btnExit.TabIndex = 0;
             btnExit.UseVisualStyleBackColor = false;
             btnExit.Click += btnExit_Click;
+            // 
+            // Column1
+            // 
+            Column1.Frozen = true;
+            Column1.HeaderText = "Id";
+            Column1.Name = "Column1";
+            Column1.Width = 50;
+            // 
+            // Column2
+            // 
+            Column2.Frozen = true;
+            Column2.HeaderText = "Código";
+            Column2.Name = "Column2";
+            // 
+            // Column3
+            // 
+            Column3.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            Column3.HeaderText = "Descripción";
+            Column3.Name = "Column3";
+            Column3.SortMode = DataGridViewColumnSortMode.NotSortable;
+            // 
+            // Column4
+            // 
+            dataGridViewCellStyle3.Alignment = DataGridViewContentAlignment.MiddleRight;
+            Column4.DefaultCellStyle = dataGridViewCellStyle3;
+            Column4.HeaderText = "Unidades";
+            Column4.Name = "Column4";
+            Column4.SortMode = DataGridViewColumnSortMode.NotSortable;
+            Column4.Width = 120;
+            // 
+            // Column5
+            // 
+            dataGridViewCellStyle4.Alignment = DataGridViewContentAlignment.MiddleRight;
+            Column5.DefaultCellStyle = dataGridViewCellStyle4;
+            Column5.HeaderText = "Precio";
+            Column5.Name = "Column5";
+            Column5.SortMode = DataGridViewColumnSortMode.NotSortable;
+            Column5.Width = 150;
+            // 
+            // Column6
+            // 
+            dataGridViewCellStyle5.Alignment = DataGridViewContentAlignment.MiddleRight;
+            Column6.DefaultCellStyle = dataGridViewCellStyle5;
+            Column6.HeaderText = "(%) Des";
+            Column6.Name = "Column6";
+            Column6.SortMode = DataGridViewColumnSortMode.NotSortable;
+            Column6.Width = 80;
+            // 
+            // Column7
+            // 
+            dataGridViewCellStyle6.Alignment = DataGridViewContentAlignment.MiddleRight;
+            Column7.DefaultCellStyle = dataGridViewCellStyle6;
+            Column7.HeaderText = "Importe";
+            Column7.Name = "Column7";
+            Column7.ReadOnly = true;
             // 
             // MainView
             // 
@@ -488,5 +510,6 @@
         private DataGridViewTextBoxColumn Column4;
         private DataGridViewTextBoxColumn Column5;
         private DataGridViewTextBoxColumn Column6;
+        private DataGridViewTextBoxColumn Column7;
     }
 }
