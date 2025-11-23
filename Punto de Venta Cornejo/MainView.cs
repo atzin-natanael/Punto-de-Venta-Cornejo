@@ -1,9 +1,10 @@
-﻿using Microsoft.Data.Sqlite;
-using System.Data;
+﻿using System.Data;
 using System.Data.OleDb;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using FirebirdSql.Data.FirebirdClient;
+using Microsoft.Data.Sqlite;
 using static System.ComponentModel.Design.ObjectSelectorEditor;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
@@ -19,6 +20,7 @@ namespace Punto_de_Venta_Cornejo
         {
             InitializeComponent();
             LoadConfig();
+            tableLayoutPanel1.Padding = new Padding(0);
         }
         public void LoadConfig()
         {
@@ -195,7 +197,7 @@ namespace Punto_de_Venta_Cornejo
                     int impuesto = int.Parse(GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query));
                     decimal precio = preciolista;
                     decimal descuentoArticulo = decimal.Parse(GetFireBirdValue.GetDiscountByArticle(articuloId) ?? "-1");
-                    if(descuentoArticulo == -1)
+                    if (descuentoArticulo == -1)
                     {
                         descuentoArticulo = decimal.Parse(descuentoCliente.ToString("0.##"));
                     }
@@ -330,6 +332,7 @@ namespace Punto_de_Venta_Cornejo
                         editando = true;
                         dataCodigos.Focus();
                         // 🔥 Habilitar la celda correcta
+                        dataCodigos.ClearSelection();
                         dataCodigos.Rows[e.RowIndex].Cells[1].Style.BackColor = System.Drawing.Color.Pink;
                         dataCodigos.Rows[e.RowIndex].Cells[2].Style.BackColor = System.Drawing.Color.Pink;
                         dataCodigos.Rows[e.RowIndex].Cells[3].Style.BackColor = System.Drawing.Color.Pink;
@@ -409,7 +412,7 @@ namespace Punto_de_Venta_Cornejo
                 }
 
                 // Validar que sea número
-                if (!int.TryParse(valor, out int numero))
+                if (!decimal.TryParse(valor, out decimal numero))
                 {
                     MessageBox.Show("Las unidades deben ser un número.");
                     e.Cancel = true; // 🔥 SE QUEDA en la celda
@@ -469,6 +472,29 @@ namespace Punto_de_Venta_Cornejo
             string cliente_id = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
             //Obtiene el descuento por cliente una sola vez
             descuentoCliente = decimal.Parse(GetFireBirdValue.GetDiscountByClient(cliente_id) ?? "-1");
+        }
+
+        private void dataCodigos_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F9)
+            {
+                if (dataCodigos.CurrentRow != null)
+                {
+                    MessageBoxExistencia existencia = new MessageBoxExistencia();
+                    string query = $"SELECT ARTICULO_ID FROM CLAVES_ARTICULOS WHERE CLAVE_ARTICULO = '{dataCodigos.CurrentRow.Cells[0].Value.ToString()}';";
+                    string articuloid = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
+                    string Exalmacen = GetFireBirdValue.GetExistencia(articuloid, "108401") ?? "Not Found";
+                    string Extienda = GetFireBirdValue.GetExistencia(articuloid, "108403") ?? "Not Found";
+                    existencia.richText.Text = dataCodigos.CurrentRow?.Cells[1]?.Value?.ToString() ?? "No encontrado";
+                    existencia.richText.Text += $"\n{dataCodigos.CurrentRow?.Cells[2]?.Value?.ToString() ?? "No encontrado"}";
+                    existencia.richText.Text += $"\n\nExistencia Almacén: {Exalmacen}";
+                    existencia.richText.Text += $"\nExistencia Tienda: {Extienda}";
+                    existencia.richText.SelectAll();
+                    existencia.richText.SelectionAlignment = HorizontalAlignment.Center;
+                    existencia.ShowDialog();
+                    e.Handled = true; // Opcional, previene otros efectos
+                }
+            }
         }
     }
 }
