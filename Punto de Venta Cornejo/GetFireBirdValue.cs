@@ -1,8 +1,9 @@
-﻿using System;
+﻿using FirebirdSql.Data.FirebirdClient;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Text;
-using FirebirdSql.Data.FirebirdClient;
+using System.Windows.Forms;
 
 namespace Punto_de_Venta_Cornejo
 {
@@ -36,45 +37,69 @@ namespace Punto_de_Venta_Cornejo
                 return null;
             }
         }
+        static public string? GetImpuesto(string articulo_id)
+        {
+            var sql = @"SELECT IMPUESTOS.PCTJE_IMPUESTO 
+                FROM IMPUESTOS
+                JOIN IMPUESTOS_ARTICULOS 
+                  ON IMPUESTOS_ARTICULOS.IMPUESTO_ID = IMPUESTOS.IMPUESTO_ID
+                WHERE IMPUESTOS_ARTICULOS.ARTICULO_ID = @a";
+            var rows = new FireBirdHelper().ExecuteSingleColumn(sql, new Dictionary<string, object>
+            {
+                {"@a", articulo_id}
+            });
+            return rows.FirstOrDefault();
+        }
         static public string? GetExistencia(string articulo_id, string almacenid)
         {
-            FbConnection con = new FbConnection(GlobalSettings.Instance.StringConnection);
-            try
+            using (FbConnection con = new FbConnection(GlobalSettings.Instance.StringConnection))
             {
-                con.Open();
-                FbCommand command = new FbCommand("EXIVAL_ART", con);
-                command.CommandType = CommandType.StoredProcedure;
+                try
+                {
+                    con.Open();
+                    using (FbCommand command = new FbCommand("EXIVAL_ART", con))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
 
-                // Parámetros de entrada
-                command.Parameters.Add("V_ARTICULO_ID", FbDbType.Integer).Value = articulo_id;
-                command.Parameters.Add("V_ALMACEN_ID", FbDbType.Integer).Value = almacenid; //peri
-                //command.Parameters.Add("V_ALMACEN_ID", FbDbType.Integer).Value = 108405; culiacan
-                command.Parameters.Add("V_FECHA", FbDbType.Date).Value = DateTime.Today;
-                command.Parameters.Add("V_ES_ULTIMO_COSTO", FbDbType.Char).Value = 'S';
-                command.Parameters.Add("V_SUCURSAL_ID", FbDbType.Integer).Value = 0;
+                        // --- 1. PARÁMETROS DE ENTRADA (5) ---
+                        command.Parameters.Add("V_ARTICULO_ID", FbDbType.Integer).Value = articulo_id;
+                        command.Parameters.Add("V_ALMACEN_ID", FbDbType.Integer).Value = almacenid;
+                        command.Parameters.Add("V_FECHA", FbDbType.Date).Value = DateTime.Today;
+                        command.Parameters.Add("V_ES_ULTIMO_COSTO", FbDbType.Char).Value = 'S';
+                        command.Parameters.Add("V_SUCURSAL_ID", FbDbType.Integer).Value = 0;
 
-                // Parámetro de salida
-                FbParameter paramARTICULO = new FbParameter("ARTICULO_ID", FbDbType.Numeric);
-                paramARTICULO.Direction = ParameterDirection.Output;
-                command.Parameters.Add(paramARTICULO);
-                FbParameter paramEXISTENCIA = new FbParameter("EXISTENCIAS", FbDbType.Numeric);
-                paramEXISTENCIA.Direction = ParameterDirection.Output;
-                command.Parameters.Add(paramEXISTENCIA);
-                // Ejecutar el procedimiento almacenado
-                command.ExecuteNonQuery();
-                return Convert.ToInt32(command.Parameters[6].Value).ToString();
+                        // --- 2. PARÁMETROS DE SALIDA (4) ---
+                        // Se deben declarar todos los outputs que devuelve el SP para mapear la respuesta
+                        // aunque solo usemos EXISTENCIA.
 
+                        FbParameter pArticuloId = command.Parameters.Add("ARTICULO_ID", FbDbType.Numeric);
+                        pArticuloId.Direction = ParameterDirection.Output;
 
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Se perdió la conexión :( , contacta a 06 o intenta de nuevo", "¡Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                MessageBox.Show(ex.ToString());
-                return null;
-            }
-            finally
-            {
-                con.Close();
+                        FbParameter pExistencia = command.Parameters.Add("EXISTENCIA", FbDbType.Numeric);
+                        pExistencia.Direction = ParameterDirection.Output;
+
+                        FbParameter pValorUnitario = command.Parameters.Add("VALOR_UNITARIO", FbDbType.Numeric);
+                        pValorUnitario.Direction = ParameterDirection.Output;
+
+                        FbParameter pValorTotal = command.Parameters.Add("VALOR_TOTAL", FbDbType.Numeric);
+                        pValorTotal.Direction = ParameterDirection.Output;
+
+                        // Ejecutar el procedimiento almacenado
+                        command.ExecuteNonQuery();
+
+                        // 3. OBTENER EL VALOR USANDO EL OBJETO DECLARADO (¡La clave!)
+                        if (pExistencia.Value == DBNull.Value) return "0";
+
+                        // Usamos Convert.ToDecimal para no perder decimales, y luego a Int32 si la existencia es entera.
+                        return Convert.ToInt32(pExistencia.Value).ToString();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Se perdió la conexión :( , contacta a 06 o intenta de nuevo", "¡Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show(ex.ToString());
+                    return null;
+                }
             }
         }
         static public string? GetDiscountByClient(string cliente_id)

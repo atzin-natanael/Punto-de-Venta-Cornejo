@@ -63,9 +63,10 @@ namespace Punto_de_Venta_Cornejo
         }
         private void Form1_Load(object sender, EventArgs e)
         {
-            txtFolio.Text = "FOLIO001";
+            txtFolio.Text = "A01";
             cbDescuento.SelectedIndex = 1;
             cbCajero.SelectedIndex = 0;
+            cbCajero.Text = "ATZIN PACHECO";
             dataCodigos.RowTemplate.Height = 40;
             dt.Columns.Add("Id", typeof(int));
             dt.Columns.Add("Codigo", typeof(string));
@@ -120,6 +121,8 @@ namespace Punto_de_Venta_Cornejo
                     decimal unidadesExistentes = Convert.ToDecimal(fila.Cells[3].Value);
                     decimal nuevasUnidades = decimal.Parse(txtUnidades.Text);
                     fila.Cells[3].Value = unidadesExistentes + nuevasUnidades;
+                    fila.Cells[6].Value = Precio * (unidadesExistentes + nuevasUnidades);
+                    CalcularTotales();
                     int index = fila.Index;
                     dataCodigos.FirstDisplayedScrollingRowIndex = index;
                     dataCodigos.ClearSelection();
@@ -481,7 +484,7 @@ namespace Punto_de_Venta_Cornejo
                 if (dataCodigos.CurrentRow != null)
                 {
                     MessageBoxExistencia existencia = new MessageBoxExistencia();
-                    string query = $"SELECT ARTICULO_ID FROM CLAVES_ARTICULOS WHERE CLAVE_ARTICULO = '{dataCodigos.CurrentRow.Cells[0].Value.ToString()}';";
+                    string query = $"SELECT ARTICULO_ID FROM CLAVES_ARTICULOS WHERE CLAVE_ARTICULO = '{dataCodigos.CurrentRow.Cells[1].Value.ToString()}';";
                     string articuloid = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
                     string Exalmacen = GetFireBirdValue.GetExistencia(articuloid, "108401") ?? "Not Found";
                     string Extienda = GetFireBirdValue.GetExistencia(articuloid, "108403") ?? "Not Found";
@@ -495,6 +498,38 @@ namespace Punto_de_Venta_Cornejo
                     e.Handled = true; // Opcional, previene otros efectos
                 }
             }
+        }
+
+        private void dataCodigos_RowsAdded(object sender, DataGridViewRowsAddedEventArgs e)
+        {
+            lbContadorArticulos.Text = dataCodigos.RowCount.ToString();
+            CalcularTotales();
+        }
+
+        private void dataCodigos_RowsRemoved(object sender, DataGridViewRowsRemovedEventArgs e)
+        {
+            lbContadorArticulos.Text = dataCodigos.RowCount.ToString();
+            CalcularTotales();
+        }
+        public void CalcularTotales()
+        {
+            decimal sumatoria = 0, descuentoMonto = 0, impuestoMonto = 0, subtotal = 0, descuentoArticulo= 0;
+            for (int i = 0; i < dataCodigos.RowCount; ++i)
+            {
+                subtotal = Convert.ToDecimal(dataCodigos.Rows[i].Cells[6].Value);
+                sumatoria += subtotal;
+                descuentoArticulo = subtotal * (Convert.ToDecimal(dataCodigos.Rows[i].Cells[5].Value) / 100m);
+                descuentoMonto += descuentoArticulo;
+                string query = $"SELECT ARTICULO_ID FROM CLAVES_ARTICULOS WHERE CLAVE_ARTICULO = '{dataCodigos.Rows[i].Cells[1].Value.ToString()}';";
+                string articuloid = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
+                decimal impuesto = GetFireBirdValue.GetImpuesto(articuloid) != null ? decimal.Parse(GetFireBirdValue.GetImpuesto(articuloid)!) : 0m;
+                decimal impuestoDecimal = (impuesto != decimal.MinusOne) ? impuesto / 100m : 0m;
+                impuestoMonto += (subtotal - descuentoArticulo) * impuestoDecimal;
+            }
+            lbSubtotal.Text = sumatoria.ToString("C2");
+            lbDescuento.Text = descuentoMonto.ToString("C2");
+            lbImpuesto.Text = (impuestoMonto).ToString("C2");
+            lbTotal.Text = (sumatoria - descuentoMonto + impuestoMonto).ToString("C2");
         }
     }
 }
