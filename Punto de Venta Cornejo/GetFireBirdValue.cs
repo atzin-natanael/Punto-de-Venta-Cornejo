@@ -144,7 +144,8 @@ namespace Punto_de_Venta_Cornejo
                     JOIN CLAVES_ARTICULOS ON CLAVES_ARTICULOS.ARTICULO_ID = ARTICULOS.ARTICULO_ID
                     JOIN PRECIOS_ARTICULOS ON PRECIOS_ARTICULOS.ARTICULO_ID = ARTICULOS.ARTICULO_ID
                     WHERE CLAVES_ARTICULOS.ROL_CLAVE_ART_ID = '17'
-                    AND PRECIOS_ARTICULOS.PRECIO_EMPRESA_ID = '42'";
+                    AND PRECIOS_ARTICULOS.PRECIO_EMPRESA_ID = '42'
+                    AND ARTICULOS.ESTATUS = 'A'";
             string[] arrayParametros = parametros.Split(' ');
             // 4. Ciclo: Agregar un filtro por cada palabra
                 foreach (string parametro in arrayParametros)
@@ -152,6 +153,44 @@ namespace Punto_de_Venta_Cornejo
                     query += $@"AND ARTICULOS.NOMBRE LIKE '%{parametro}%'";
                 }
                 query += " ORDER BY ARTICULOS.NOMBRE ASC ROWS 50";
+            // Llamada a tu Helper
+            // ✅ CORRECTO. Pasas el diccionario completo (con @p0, @p1, etc.) directamente.
+            try
+            {
+                using (FbConnection con = new FbConnection(GlobalSettings.Instance.StringConnection))
+                {
+                    con.Open();
+                    using (FbCommand command = new FbCommand(query, con))
+                    {
+                        // Si usas el SQL dinámico: @p0, @p1, etc.
+                        using (FbDataReader reader = command.ExecuteReader())
+                        {
+                            DataTable dt = new DataTable();
+                            dt.Load(reader); // cargar sin mover el cursor
+                            return dt;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                MessageBox.Show("Se perdió la conexión :( , contacta a 06 o intenta de nuevo", "¡Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return null;
+            }
+
+        }
+        public static DataTable BuscarArticulosByClave(string parametros)
+        {
+            string query = $@"
+                    SELECT CLAVES_ARTICULOS.CLAVE_ARTICULO, ARTICULOS.NOMBRE, PRECIOS_ARTICULOS.PRECIO  
+                    FROM ARTICULOS
+                    JOIN CLAVES_ARTICULOS ON CLAVES_ARTICULOS.ARTICULO_ID = ARTICULOS.ARTICULO_ID
+                    JOIN PRECIOS_ARTICULOS ON PRECIOS_ARTICULOS.ARTICULO_ID = ARTICULOS.ARTICULO_ID
+                    WHERE CLAVES_ARTICULOS.ROL_CLAVE_ART_ID = '17'
+                    AND PRECIOS_ARTICULOS.PRECIO_EMPRESA_ID = '42'
+                    AND ARTICULOS.ESTATUS = 'A'
+                    AND CLAVES_ARTICULOS.CLAVE_ARTICULO LIKE '{parametros}%'
+                    ORDER BY CLAVES_ARTICULOS.CLAVE_ARTICULO ASC ROWS 50";
             // Llamada a tu Helper
             // ✅ CORRECTO. Pasas el diccionario completo (con @p0, @p1, etc.) directamente.
             try

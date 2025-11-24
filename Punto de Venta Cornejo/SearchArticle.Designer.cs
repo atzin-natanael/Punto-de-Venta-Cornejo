@@ -85,7 +85,7 @@
             btnClose.Location = new Point(592, 21);
             btnClose.Name = "btnClose";
             btnClose.Size = new Size(141, 40);
-            btnClose.TabIndex = 3;
+            btnClose.TabIndex = 6;
             btnClose.Text = "Cancelar";
             btnClose.UseVisualStyleBackColor = false;
             btnClose.Click += btnClose_Click;
@@ -102,7 +102,7 @@
             btnAceptar.Location = new Point(349, 21);
             btnAceptar.Name = "btnAceptar";
             btnAceptar.Size = new Size(141, 40);
-            btnAceptar.TabIndex = 2;
+            btnAceptar.TabIndex = 5;
             btnAceptar.Text = "Aceptar";
             btnAceptar.UseVisualStyleBackColor = false;
             // 
@@ -149,7 +149,8 @@
             dataCodigos.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.DisableResizing;
             dataCodigos.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dataCodigos.Size = new Size(1068, 568);
-            dataCodigos.TabIndex = 2;
+            dataCodigos.TabIndex = 1;
+            dataCodigos.KeyDown += dataCodigos_KeyDown;
             // 
             // Column1
             // 
@@ -211,7 +212,8 @@
             txtDescripcion.Location = new Point(180, 71);
             txtDescripcion.Name = "txtDescripcion";
             txtDescripcion.Size = new Size(397, 29);
-            txtDescripcion.TabIndex = 8;
+            txtDescripcion.TabIndex = 3;
+            txtDescripcion.KeyDown += txtDescripcion_KeyDown;
             // 
             // txtCodigo
             // 
@@ -220,7 +222,7 @@
             txtCodigo.Location = new Point(12, 71);
             txtCodigo.Name = "txtCodigo";
             txtCodigo.Size = new Size(148, 29);
-            txtCodigo.TabIndex = 7;
+            txtCodigo.TabIndex = 2;
             // 
             // btnBuscar
             // 
@@ -233,7 +235,7 @@
             btnBuscar.Location = new Point(598, 67);
             btnBuscar.Name = "btnBuscar";
             btnBuscar.Size = new Size(127, 37);
-            btnBuscar.TabIndex = 9;
+            btnBuscar.TabIndex = 4;
             btnBuscar.Text = "Buscar";
             btnBuscar.UseVisualStyleBackColor = false;
             btnBuscar.Click += btnBuscar_Click;

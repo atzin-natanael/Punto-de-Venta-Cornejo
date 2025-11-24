@@ -11,11 +11,13 @@ namespace Punto_de_Venta_Cornejo
 {
     public partial class SearchArticle : Form
     {
+        // Propiedades que contendrán los datos a retornar
+        public string? ArticuloSelectedClave { get; private set; }
+        public string? NombreSelected { get; private set; }
+        public decimal PrecioSelected { get; private set; }
         public SearchArticle()
         {
             InitializeComponent();
-            if (txtDescripcion.Text != string.Empty)
-                CargarDatos();
         }
         [DllImport("user32.DLL", EntryPoint = "ReleaseCapture")]
         private extern static void ReleaseCapture();
@@ -37,7 +39,13 @@ namespace Punto_de_Venta_Cornejo
             dataCodigos.Rows.Clear();
             if (txtCodigo.Text != string.Empty)
             {
-
+                DataTable dataTable = new DataTable();
+                dataTable = GetFireBirdValue.BuscarArticulosByClave(txtCodigo.Text);
+                dataCodigos.AutoGenerateColumns = false;
+                dataCodigos.DataSource = dataTable;
+                Column1.DataPropertyName = "CLAVE_ARTICULO";
+                Column2.DataPropertyName = "NOMBRE";
+                Column3.DataPropertyName = "PRECIO";
             }
             else if (txtDescripcion.Text != string.Empty)
             {
@@ -59,6 +67,40 @@ namespace Punto_de_Venta_Cornejo
         private void SearchArticle_Load(object sender, EventArgs e)
         {
             dataCodigos.RowTemplate.Height = 40;
+            if (txtDescripcion.Text != string.Empty || txtCodigo.Text != string.Empty)
+            {
+                CargarDatos();
+                dataCodigos.Focus();
+            }
+        }
+
+        private void txtDescripcion_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (txtDescripcion.Text != string.Empty)
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    CargarDatos();
+                    e.SuppressKeyPress = true; // Evita el sonido de "ding"
+                    dataCodigos.Focus();
+                }
+
+            }
+        }
+
+        private void dataCodigos_KeyDown(object sender, KeyEventArgs e)
+        {
+            if(dataCodigos.RowCount > 0)
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true; // Evita el sonido de "ding"
+                    ArticuloSelectedClave = dataCodigos.CurrentRow.Cells[0].Value.ToString();
+                    NombreSelected = dataCodigos.CurrentRow.Cells[1].Value.ToString();
+                    PrecioSelected = Convert.ToDecimal(dataCodigos.CurrentRow.Cells[2].Value);
+                    this.Close();
+                }
+            }
         }
     }
 }

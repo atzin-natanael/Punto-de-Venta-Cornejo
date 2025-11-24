@@ -190,7 +190,6 @@
             txtDescripcion.Size = new Size(482, 33);
             txtDescripcion.TabIndex = 4;
             txtDescripcion.KeyDown += txtDescripcion_KeyDown;
-            txtDescripcion.KeyPress += txtDescripcion_KeyPress;
             // 
             // txtCodigo
             // 

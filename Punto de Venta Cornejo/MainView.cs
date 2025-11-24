@@ -203,6 +203,35 @@ namespace Punto_de_Venta_Cornejo
                 }
 
             }
+            if (e.KeyCode == Keys.F4)
+            {
+                if (txtCodigo.Text != string.Empty)
+                {
+                    Form overlay = new Form();
+
+                    // Configuración del Overlay:
+                    overlay.StartPosition = FormStartPosition.Manual;
+                    overlay.FormBorderStyle = FormBorderStyle.None;
+                    overlay.Opacity = 0.70;           // 70% de opacidad (oscuro)
+                    overlay.BackColor = Color.Black;
+                    overlay.Size = this.Size;          // Mismo tamaño que el Formulario Padre
+                    overlay.Location = this.Location;  // Misma posición que el Formulario Padre
+
+                    // 2. Mostrar el Overlay
+                    overlay.Show();
+                    SearchArticle searchArticle = new SearchArticle();
+                    searchArticle.txtCodigo.Text = txtCodigo.Text;
+                    searchArticle.ShowDialog(overlay);
+                    overlay.Close();
+                    if (searchArticle.ArticuloSelectedClave != null)
+                    {
+                        txtCodigo.Text = searchArticle.ArticuloSelectedClave;
+                        txtDescripcion.Text = searchArticle.NombreSelected;
+                        e.SuppressKeyPress = true;
+                        txtUnidades.Focus();
+                    }
+                }
+            }
         }
 
         private void txtUnidades_KeyDown(object sender, KeyEventArgs e)
@@ -584,13 +613,15 @@ namespace Punto_de_Venta_Cornejo
                     searchArticle.txtDescripcion.Text = txtDescripcion.Text;
                     searchArticle.ShowDialog(overlay);
                     overlay.Close();
-
+                    if(searchArticle.ArticuloSelectedClave != null)
+                    {
+                        txtCodigo.Text = searchArticle.ArticuloSelectedClave;
+                        txtDescripcion.Text = searchArticle.NombreSelected;
+                        e.SuppressKeyPress = true;
+                        txtUnidades.Focus();
+                    }
                 }
             }
-        }
-
-        private void txtDescripcion_KeyPress(object sender, KeyPressEventArgs e)
-        {
         }
     }
 }
