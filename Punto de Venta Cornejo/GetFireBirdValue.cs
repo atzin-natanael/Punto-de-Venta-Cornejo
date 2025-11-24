@@ -1,9 +1,10 @@
-﻿using FirebirdSql.Data.FirebirdClient;
-using System;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Text;
 using System.Windows.Forms;
+using FirebirdSql.Data.FirebirdClient;
 
 namespace Punto_de_Venta_Cornejo
 {
@@ -134,6 +135,48 @@ namespace Punto_de_Venta_Cornejo
             });
 
             return rows.FirstOrDefault();
+        }
+        public static DataTable BuscarArticulosByDesc(string parametros)
+        {
+            string query = $@"
+                    SELECT CLAVES_ARTICULOS.CLAVE_ARTICULO, ARTICULOS.NOMBRE, PRECIOS_ARTICULOS.PRECIO  
+                    FROM ARTICULOS
+                    JOIN CLAVES_ARTICULOS ON CLAVES_ARTICULOS.ARTICULO_ID = ARTICULOS.ARTICULO_ID
+                    JOIN PRECIOS_ARTICULOS ON PRECIOS_ARTICULOS.ARTICULO_ID = ARTICULOS.ARTICULO_ID
+                    WHERE CLAVES_ARTICULOS.ROL_CLAVE_ART_ID = '17'
+                    AND PRECIOS_ARTICULOS.PRECIO_EMPRESA_ID = '42'";
+            string[] arrayParametros = parametros.Split(' ');
+            // 4. Ciclo: Agregar un filtro por cada palabra
+                foreach (string parametro in arrayParametros)
+                {
+                    query += $@"AND ARTICULOS.NOMBRE LIKE '%{parametro}%'";
+                }
+                query += " ORDER BY ARTICULOS.NOMBRE ASC ROWS 50";
+            // Llamada a tu Helper
+            // ✅ CORRECTO. Pasas el diccionario completo (con @p0, @p1, etc.) directamente.
+            try
+            {
+                using (FbConnection con = new FbConnection(GlobalSettings.Instance.StringConnection))
+                {
+                    con.Open();
+                    using (FbCommand command = new FbCommand(query, con))
+                    {
+                        // Si usas el SQL dinámico: @p0, @p1, etc.
+                        using (FbDataReader reader = command.ExecuteReader())
+                        {
+                            DataTable dt = new DataTable();
+                            dt.Load(reader); // cargar sin mover el cursor
+                            return dt;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                MessageBox.Show("Se perdió la conexión :( , contacta a 06 o intenta de nuevo", "¡Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return null;
+            }
+
         }
 
     }

@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System;
+using System.Data;
 using System.Data.OleDb;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -16,6 +17,7 @@ namespace Punto_de_Venta_Cornejo
         bool editando = false;
         DataTable dt = new DataTable();
         decimal descuentoCliente = 20.0m;
+        bool completedUpdate = false;
         public MainView()
         {
             InitializeComponent();
@@ -128,6 +130,26 @@ namespace Punto_de_Venta_Cornejo
                     dataCodigos.ClearSelection();
                     dataCodigos.Rows[index].Cells[1].Selected = true;
                     dataCodigos.Rows[index].Cells[3].Selected = true;
+                    // Actualizar la base de datos local
+
+                    var valor = dataCodigos.Rows[index].Cells[0].Value?.ToString();
+                    var valorUnidad = dataCodigos.Rows[index].Cells[3].Value?.ToString();
+                    if (string.IsNullOrWhiteSpace(valor) || string.IsNullOrWhiteSpace(valorUnidad))
+                    {
+                        MessageBox.Show("La celda está vacía.");
+                        return;
+                    }
+                    using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + txtFolio.Text + ".db;"))
+                    {
+                        conect.Open();
+                        string query = $"UPDATE {txtFolio.Text} SET Unidades = @Unidades, Importe = @Importe WHERE Id = '" + dataCodigos.Rows[index].Cells[0].Value + "';";
+                        SqliteCommand command = new SqliteCommand(query, conect);
+                        command.Parameters.AddWithValue("@Unidades", dataCodigos.Rows[index].Cells[3].Value);
+                        command.Parameters.AddWithValue("@Importe", Precio * (unidadesExistentes + nuevasUnidades));
+                        command.ExecuteNonQuery();
+                        conect.Close();
+                    }
+                    completedUpdate = true;
                     return; // Salir del método para evitar agregar una nueva fila
                 }
             }
@@ -213,7 +235,9 @@ namespace Punto_de_Venta_Cornejo
                         descuentoArticulo = decimal.Parse((_descuentoTotal * 100m).ToString("0.##")); // Devuelve en porcentaje
                     }
                     AgregarFila(precio, descuentoArticulo);
-                    UpdateLocalDB(precio, descuentoArticulo);
+                    if (!completedUpdate)
+                        UpdateLocalDB(precio, descuentoArticulo);
+                    completedUpdate = false;
                     dataCodigos.ClearSelection();
                     dataCodigos.Rows[dataCodigos.RowCount - 1].Cells[1].Selected = true;
                     dataCodigos.Rows[dataCodigos.RowCount - 1].Cells[3].Selected = true;
@@ -349,6 +373,7 @@ namespace Punto_de_Venta_Cornejo
                     {
                         menu.Close();
                         dataCodigos.Rows.RemoveAt(fila);
+                        CalcularTotales();
                         using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + txtFolio.Text + ".db;"))
                         {
                             conect.Open();
@@ -366,6 +391,8 @@ namespace Punto_de_Venta_Cornejo
 
         private void dataCodigos_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
+            // Actualizar la base de datos local
+
             var valor = dataCodigos.Rows[e.RowIndex].Cells[0].Value?.ToString();
             var valorUnidad = dataCodigos.Rows[e.RowIndex].Cells[3].Value?.ToString();
             if (string.IsNullOrWhiteSpace(valor) || string.IsNullOrWhiteSpace(valorUnidad))
@@ -373,12 +400,15 @@ namespace Punto_de_Venta_Cornejo
                 MessageBox.Show("La celda está vacía.");
                 return;
             }
+            dataCodigos.Rows[e.RowIndex].Cells[6].Value = Convert.ToDecimal(dataCodigos.Rows[e.RowIndex].Cells[3].Value) * Convert.ToDecimal(dataCodigos.Rows[e.RowIndex].Cells[4].Value);
+            CalcularTotales();
             using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + txtFolio.Text + ".db;"))
             {
                 conect.Open();
-                string query = $"UPDATE {txtFolio.Text} SET Unidades = @valor WHERE Id = '" + dataCodigos.Rows[e.RowIndex].Cells[0].Value + "';";
+                string query = $"UPDATE {txtFolio.Text} SET Unidades = @Unidades, Importe = @Importe WHERE Id = '" + dataCodigos.Rows[e.RowIndex].Cells[0].Value + "';";
                 SqliteCommand command = new SqliteCommand(query, conect);
-                command.Parameters.AddWithValue("@valor", dataCodigos.Rows[e.RowIndex].Cells[3].Value);
+                command.Parameters.AddWithValue("@Unidades", dataCodigos.Rows[e.RowIndex].Cells[3].Value);
+                command.Parameters.AddWithValue("@Importe", Convert.ToDecimal(dataCodigos.Rows[e.RowIndex].Cells[3].Value) * Convert.ToDecimal(dataCodigos.Rows[e.RowIndex].Cells[4].Value));
                 command.ExecuteNonQuery();
                 conect.Close();
             }
@@ -513,7 +543,7 @@ namespace Punto_de_Venta_Cornejo
         }
         public void CalcularTotales()
         {
-            decimal sumatoria = 0, descuentoMonto = 0, impuestoMonto = 0, subtotal = 0, descuentoArticulo= 0;
+            decimal sumatoria = 0, descuentoMonto = 0, impuestoMonto = 0, subtotal = 0, descuentoArticulo = 0;
             for (int i = 0; i < dataCodigos.RowCount; ++i)
             {
                 subtotal = Convert.ToDecimal(dataCodigos.Rows[i].Cells[6].Value);
@@ -530,6 +560,37 @@ namespace Punto_de_Venta_Cornejo
             lbDescuento.Text = descuentoMonto.ToString("C2");
             lbImpuesto.Text = (impuestoMonto).ToString("C2");
             lbTotal.Text = (sumatoria - descuentoMonto + impuestoMonto).ToString("C2");
+        }
+
+        private void txtDescripcion_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F4)
+            {
+                if (txtDescripcion.Text != string.Empty)
+                {
+                    Form overlay = new Form();
+
+                    // Configuración del Overlay:
+                    overlay.StartPosition = FormStartPosition.Manual;
+                    overlay.FormBorderStyle = FormBorderStyle.None;
+                    overlay.Opacity = 0.70;           // 70% de opacidad (oscuro)
+                    overlay.BackColor = Color.Black;
+                    overlay.Size = this.Size;          // Mismo tamaño que el Formulario Padre
+                    overlay.Location = this.Location;  // Misma posición que el Formulario Padre
+
+                    // 2. Mostrar el Overlay
+                    overlay.Show();
+                    SearchArticle searchArticle = new SearchArticle();
+                    searchArticle.txtDescripcion.Text = txtDescripcion.Text;
+                    searchArticle.ShowDialog(overlay);
+                    overlay.Close();
+
+                }
+            }
+        }
+
+        private void txtDescripcion_KeyPress(object sender, KeyPressEventArgs e)
+        {
         }
     }
 }
