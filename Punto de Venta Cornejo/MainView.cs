@@ -3,6 +3,7 @@ using System.Data;
 using System.Data.OleDb;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows.Forms;
 using FirebirdSql.Data.FirebirdClient;
 using Microsoft.Data.Sqlite;
@@ -18,10 +19,12 @@ namespace Punto_de_Venta_Cornejo
         DataTable dt = new DataTable();
         decimal descuentoCliente = 20.0m;
         bool completedUpdate = false;
+        List<List<string>> cajeros = new List<List<string>>();
         public MainView()
         {
             InitializeComponent();
             LoadConfig();
+            CargarCajeros();
             tableLayoutPanel1.Padding = new Padding(0);
         }
         public void LoadConfig()
@@ -63,12 +66,73 @@ namespace Punto_de_Venta_Cornejo
             }
 
         }
+        public void CargarCajeros()
+        {
+            FbConnection con = new FbConnection(GlobalSettings.Instance.StringConnection);
+            try
+            {
+                con.Open();
+                string query = "SELECT CAJERO_ID, NOMBRE FROM CAJEROS WHERE OCULTO = 'N'";
+                FbCommand command = new FbCommand(query, con);
+                FbDataReader reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    List<string> cajero = new List<string>();
+                    cajero.Add(reader.GetString(0));
+                    cajero.Add(reader.GetString(1));
+                    cajeros.Add(cajero);
+                }
+                CargarComboBox(cajeros);
+                reader.Close();
+
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Se perdió la conexión :( , contacta a 06 o intenta de nuevo", "¡Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(ex.ToString());
+                return;
+            }
+            finally
+            {
+                con.Close();
+            }
+        }
+        public void CargarComboBox(List<List<string>> vendedores)
+        {
+            var nombres = new List<string>();
+            foreach (var cajero in cajeros)
+            {
+                nombres.Add(cajero[1]);
+            }
+            // Limpiar y agregar los nombres
+            cbCajero.Items.Clear();
+            cbCajero.Items.AddRange(nombres.ToArray());
+            // Configurar autocompletado
+            cbCajero.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            cbCajero.AutoCompleteSource = AutoCompleteSource.CustomSource;
+            cbCajero.AutoCompleteCustomSource = new AutoCompleteStringCollection();
+            cbCajero.AutoCompleteCustomSource.AddRange(nombres.ToArray());
+            cbCajero.SelectedIndex = 0;
+        }
+        public void CargarTablaDataTable()
+        {   
+            dataCodigos.AutoGenerateColumns = false;
+            dataCodigos.DataSource = dt;
+
+            Column1.DataPropertyName = "Id";
+            Column2.DataPropertyName = "Codigo";
+            Column3.DataPropertyName = "Descripcion";
+            Column4.DataPropertyName = "Unidades";
+            Column5.DataPropertyName = "Precio";
+            Column6.DataPropertyName = "Descuento";
+            Column7.DataPropertyName = "Importe";
+        }
         private void Form1_Load(object sender, EventArgs e)
         {
-            txtFolio.Text = "A01";
-            cbDescuento.SelectedIndex = 1;
-            cbCajero.SelectedIndex = 0;
-            cbCajero.Text = "ATZIN PACHECO";
+            cbDescuento.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            cbDescuento.AutoCompleteSource = AutoCompleteSource.ListItems;
+            cbDescuento.SelectedIndex = 0;
             dataCodigos.RowTemplate.Height = 40;
             dt.Columns.Add("Id", typeof(int));
             dt.Columns.Add("Codigo", typeof(string));
@@ -87,7 +151,7 @@ namespace Punto_de_Venta_Cornejo
             Column5.DataPropertyName = "Precio";
             Column6.DataPropertyName = "Descuento";
             Column7.DataPropertyName = "Importe";
-
+            txtFolio.Focus();
         }
 
         private void txtFolio_KeyDown(object sender, KeyEventArgs e)
@@ -109,7 +173,7 @@ namespace Punto_de_Venta_Cornejo
                 if (cbCajero.Text != string.Empty)
                 {
                     e.SuppressKeyPress = true;
-                    txtCodigo.Focus();
+                    cbDescuento.Focus();
                 }
             }
         }
@@ -126,10 +190,7 @@ namespace Punto_de_Venta_Cornejo
                     fila.Cells[6].Value = Precio * (unidadesExistentes + nuevasUnidades);
                     CalcularTotales();
                     int index = fila.Index;
-                    dataCodigos.FirstDisplayedScrollingRowIndex = index;
                     dataCodigos.ClearSelection();
-                    dataCodigos.Rows[index].Cells[1].Selected = true;
-                    dataCodigos.Rows[index].Cells[3].Selected = true;
                     // Actualizar la base de datos local
 
                     var valor = dataCodigos.Rows[index].Cells[0].Value?.ToString();
@@ -139,10 +200,10 @@ namespace Punto_de_Venta_Cornejo
                         MessageBox.Show("La celda está vacía.");
                         return;
                     }
-                    using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + txtFolio.Text + ".db;"))
+                    using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + "Venta_"+txtFolio.Text + ".db;"))
                     {
                         conect.Open();
-                        string query = $"UPDATE {txtFolio.Text} SET Unidades = @Unidades, Importe = @Importe WHERE Id = '" + dataCodigos.Rows[index].Cells[0].Value + "';";
+                        string query = $"UPDATE Venta_{txtFolio.Text} SET Unidades = @Unidades, Importe = @Importe WHERE Id = '" + dataCodigos.Rows[index].Cells[0].Value + "';";
                         SqliteCommand command = new SqliteCommand(query, conect);
                         command.Parameters.AddWithValue("@Unidades", dataCodigos.Rows[index].Cells[3].Value);
                         command.Parameters.AddWithValue("@Importe", Precio * (unidadesExistentes + nuevasUnidades));
@@ -150,6 +211,12 @@ namespace Punto_de_Venta_Cornejo
                         conect.Close();
                     }
                     completedUpdate = true;
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        dataCodigos.Rows[index].Cells[1].Selected = true;
+                        dataCodigos.Rows[index].Cells[3].Selected = true;
+                        dataCodigos.FirstDisplayedScrollingRowIndex = index;
+                    }));
                     return; // Salir del método para evitar agregar una nueva fila
                 }
             }
@@ -170,6 +237,13 @@ namespace Punto_de_Venta_Cornejo
         {
             decimal precio = 0;
             decimal descuento = 0;
+            if(txtFolio.Text == string.Empty || cbCajero.Text == string.Empty || cbDescuento.Text == string.Empty)
+            {
+                MessageBox.Show("Completa los datos de folio, cajero y cliente antes de continuar.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                txtCodigo.Clear();
+                txtFolio.Focus();
+                return;
+            }
             if (e.KeyCode == Keys.Enter)
             {
                 if (txtCodigo.Text != string.Empty)
@@ -178,7 +252,11 @@ namespace Punto_de_Venta_Cornejo
                     string articuloId = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
                     if (articuloId == null)
                     {
-                        MessageBox.Show("Código no encontrado", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MensajeError mensajeError = new MensajeError();
+                        mensajeError.Titulo.Text = "!ARTICULO NO ENCONTRADO!";
+                        mensajeError.BackColor = System.Drawing.Color.Yellow;
+                        mensajeError.Titulo.ForeColor = System.Drawing.Color.Black;
+                        mensajeError.ShowDialog();
                         txtCodigo.Select(0, txtCodigo.TextLength);
                         txtCodigo.Focus();
                         return;
@@ -203,41 +281,50 @@ namespace Punto_de_Venta_Cornejo
                 }
 
             }
-            if (e.KeyCode == Keys.F4)
-            {
-                if (txtCodigo.Text != string.Empty)
-                {
-                    Form overlay = new Form();
+            //if (e.KeyCode == Keys.F4)
+            //{
+            //    if (txtCodigo.Text != string.Empty)
+            //    {
+            //        Form overlay = new Form();
 
-                    // Configuración del Overlay:
-                    overlay.StartPosition = FormStartPosition.Manual;
-                    overlay.FormBorderStyle = FormBorderStyle.None;
-                    overlay.Opacity = 0.70;           // 70% de opacidad (oscuro)
-                    overlay.BackColor = Color.Black;
-                    overlay.Size = this.Size;          // Mismo tamaño que el Formulario Padre
-                    overlay.Location = this.Location;  // Misma posición que el Formulario Padre
+            //        // Configuración del Overlay:
+            //        overlay.StartPosition = FormStartPosition.Manual;
+            //        overlay.FormBorderStyle = FormBorderStyle.None;
+            //        overlay.Opacity = 0.70;           // 70% de opacidad (oscuro)
+            //        overlay.BackColor = Color.Black;
+            //        overlay.Size = this.Size;          // Mismo tamaño que el Formulario Padre
+            //        overlay.Location = this.Location;  // Misma posición que el Formulario Padre
 
-                    // 2. Mostrar el Overlay
-                    overlay.Show();
-                    SearchArticle searchArticle = new SearchArticle();
-                    searchArticle.txtCodigo.Text = txtCodigo.Text;
-                    searchArticle.ShowDialog(overlay);
-                    overlay.Close();
-                    if (searchArticle.ArticuloSelectedClave != null)
-                    {
-                        txtCodigo.Text = searchArticle.ArticuloSelectedClave;
-                        txtDescripcion.Text = searchArticle.NombreSelected;
-                        e.SuppressKeyPress = true;
-                        txtUnidades.Focus();
-                    }
-                }
-            }
+            //        // 2. Mostrar el Overlay
+            //        overlay.Show();
+            //        SearchArticle searchArticle = new SearchArticle();
+            //        searchArticle.txtCodigo.Text = txtCodigo.Text;
+            //        searchArticle.ShowDialog(overlay);
+            //        overlay.Close();
+            //        if (searchArticle.ArticuloSelectedClave != null)
+            //        {
+            //            txtCodigo.Text = searchArticle.ArticuloSelectedClave;
+            //            txtDescripcion.Text = searchArticle.NombreSelected;
+            //            e.SuppressKeyPress = true;
+            //            txtUnidades.Focus();
+            //        }
+            //    }
+            //}
         }
 
         private void txtUnidades_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
             {
+                if(txtUnidades.Text == "0")
+                {
+                    MessageBox.Show("Las unidades no pueden ser cero.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                if(txtCodigo.Text != string.Empty && txtCodigo.TextLength !=6)
+                {
+                    txtCodigo_KeyDown(sender, e);   
+                }
                 if (txtUnidades.Text != string.Empty)
                 {
                     string query = $"SELECT ARTICULO_ID FROM CLAVES_ARTICULOS WHERE CLAVE_ARTICULO = '{txtCodigo.Text}';";
@@ -265,12 +352,17 @@ namespace Punto_de_Venta_Cornejo
                     }
                     AgregarFila(precio, descuentoArticulo);
                     if (!completedUpdate)
+                    {
                         UpdateLocalDB(precio, descuentoArticulo);
+                        this.BeginInvoke(new Action(() =>
+                        {
+                            dataCodigos.Rows[dataCodigos.RowCount - 1].Cells[1].Selected = true;
+                            dataCodigos.Rows[dataCodigos.RowCount - 1].Cells[3].Selected = true;
+                            dataCodigos.FirstDisplayedScrollingRowIndex = dataCodigos.RowCount - 1;
+                        }));
+                    }
                     completedUpdate = false;
                     dataCodigos.ClearSelection();
-                    dataCodigos.Rows[dataCodigos.RowCount - 1].Cells[1].Selected = true;
-                    dataCodigos.Rows[dataCodigos.RowCount - 1].Cells[3].Selected = true;
-                    dataCodigos.FirstDisplayedScrollingRowIndex = dataCodigos.RowCount - 1;
                     txtCodigo.Clear();
                     txtDescripcion.Clear();
                     txtUnidades.Clear();
@@ -325,19 +417,19 @@ namespace Punto_de_Venta_Cornejo
         public void UpdateLocalDB(decimal Precio, decimal Descuento)
         {
             SQLitePCL.Batteries.Init();
-            using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + txtFolio.Text + ".db;"))
+            using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + "Venta_"+txtFolio.Text + ".db;"))
             {
                 conect.Open();
-                string crearTablaQuery = $"CREATE TABLE IF NOT EXISTS {txtFolio.Text} (Id INTEGER, Codigo TEXT, Descripcion TEXT, Unidades INTEGER, Precio DECIMAL, Descuento DECIMAL, Importe DECIMAL)";
+                string crearTablaQuery = $"CREATE TABLE IF NOT EXISTS Venta_{txtFolio.Text} (Id INTEGER, Codigo TEXT, Descripcion TEXT, Unidades INTEGER, Precio DECIMAL, Descuento DECIMAL, Importe DECIMAL)";
                 SqliteCommand crearTablaCommand = new SqliteCommand(crearTablaQuery, conect);
                 crearTablaCommand.ExecuteNonQuery();
                 string query = $@"
-                INSERT INTO {txtFolio.Text} (Id, Codigo, Descripcion, Unidades, Precio, Descuento, Importe)
+                INSERT INTO Venta_{txtFolio.Text} (Id, Codigo, Descripcion, Unidades, Precio, Descuento, Importe)
                 VALUES (@Id, @Codigo, @Descripcion, @Unidades, @Precio, @Descuento, @Importe)
                 ";
                 using (SqliteCommand cmd = new SqliteCommand(query, conect))
                 {
-                    cmd.Parameters.AddWithValue("@Folio", txtFolio.Text);
+                    cmd.Parameters.AddWithValue("@Folio", "Venta_"+txtFolio.Text);
                     cmd.Parameters.AddWithValue("@Id", idCodigos);
                     cmd.Parameters.AddWithValue("@Codigo", txtCodigo.Text);
                     cmd.Parameters.AddWithValue("@Descripcion", txtDescripcion.Text);
@@ -403,10 +495,10 @@ namespace Punto_de_Venta_Cornejo
                         menu.Close();
                         dataCodigos.Rows.RemoveAt(fila);
                         CalcularTotales();
-                        using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + txtFolio.Text + ".db;"))
+                        using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + "Venta_"+txtFolio.Text + ".db;"))
                         {
                             conect.Open();
-                            string query = $"DELETE FROM {txtFolio.Text} WHERE Id = @Id;";
+                            string query = $"DELETE FROM Venta_{txtFolio.Text} WHERE Id = @Id;";
                             SqliteCommand command = new SqliteCommand(query, conect);
                             command.Parameters.AddWithValue("@Id", id);
                             command.ExecuteNonQuery();
@@ -431,10 +523,10 @@ namespace Punto_de_Venta_Cornejo
             }
             dataCodigos.Rows[e.RowIndex].Cells[6].Value = Convert.ToDecimal(dataCodigos.Rows[e.RowIndex].Cells[3].Value) * Convert.ToDecimal(dataCodigos.Rows[e.RowIndex].Cells[4].Value);
             CalcularTotales();
-            using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + txtFolio.Text + ".db;"))
+            using (SqliteConnection conect = new SqliteConnection(GlobalSettings.Instance.ConnectionLocalDb + "Venta_"+txtFolio.Text + ".db;"))
             {
                 conect.Open();
-                string query = $"UPDATE {txtFolio.Text} SET Unidades = @Unidades, Importe = @Importe WHERE Id = '" + dataCodigos.Rows[e.RowIndex].Cells[0].Value + "';";
+                string query = $"UPDATE Venta_{txtFolio.Text} SET Unidades = @Unidades, Importe = @Importe WHERE Id = '" + dataCodigos.Rows[e.RowIndex].Cells[0].Value + "';";
                 SqliteCommand command = new SqliteCommand(query, conect);
                 command.Parameters.AddWithValue("@Unidades", dataCodigos.Rows[e.RowIndex].Cells[3].Value);
                 command.Parameters.AddWithValue("@Importe", Convert.ToDecimal(dataCodigos.Rows[e.RowIndex].Cells[3].Value) * Convert.ToDecimal(dataCodigos.Rows[e.RowIndex].Cells[4].Value));
@@ -522,18 +614,26 @@ namespace Punto_de_Venta_Cornejo
 
         private void cbDescuento_SelectedIndexChanged(object sender, EventArgs e)
         {
-            //string query = $"SELECT CLIENTE_ID FROM CLAVES_CLIENTES WHERE CLAVE_CLIENTE = {cbDescuento.Text};";
-            //string cliente_id = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
-            //////Obtiene el descuento por cliente una sola vez
-            //descuentoCliente = decimal.Parse(GetFireBirdValue.GetDiscountByClient(cliente_id) ?? "-1");
+            if (cbDescuento.SelectedIndex != -1 && !string.IsNullOrWhiteSpace(cbDescuento.Text))
+            {
+                // El texto ya está actualizado aquí.
+                string query = $"SELECT CLIENTE_ID FROM CLAVES_CLIENTES WHERE CLAVE_CLIENTE = '{cbDescuento.Text}';";
+                string cliente_id = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
+
+                // Obtiene el descuento
+                descuentoCliente = decimal.Parse(GetFireBirdValue.GetDiscountByClient(cliente_id) ?? "-1");
+
+                // Una vez que tengas el descuento, debes recalcular los totales de la venta
+                // ActualizarTotales(); 
+            }
         }
 
         private void cbDescuento_SelectionChangeCommitted(object sender, EventArgs e)
         {
-            string query = $"SELECT CLIENTE_ID FROM CLAVES_CLIENTES WHERE CLAVE_CLIENTE = '{cbDescuento.Text}';";
-            string cliente_id = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
-            //Obtiene el descuento por cliente una sola vez
-            descuentoCliente = decimal.Parse(GetFireBirdValue.GetDiscountByClient(cliente_id) ?? "-1");
+            //string query = $"SELECT CLIENTE_ID FROM CLAVES_CLIENTES WHERE CLAVE_CLIENTE = '{cbDescuento.Text}';";
+            //string cliente_id = GetFireBirdValue.GetValue(GlobalSettings.Instance.StringConnection, query);
+            ////Obtiene el descuento por cliente una sola vez
+            //descuentoCliente = decimal.Parse(GetFireBirdValue.GetDiscountByClient(cliente_id) ?? "-1");
         }
 
         private void dataCodigos_KeyDown(object sender, KeyEventArgs e)
@@ -562,11 +662,22 @@ namespace Punto_de_Venta_Cornejo
         private void dataCodigos_RowsAdded(object sender, DataGridViewRowsAddedEventArgs e)
         {
             lbContadorArticulos.Text = dataCodigos.RowCount.ToString();
+            {
+                cbDescuento.Enabled = false;
+                txtFolio.Enabled = false;
+                cbCajero.Enabled = false;
+            }
             CalcularTotales();
         }
 
         private void dataCodigos_RowsRemoved(object sender, DataGridViewRowsRemovedEventArgs e)
         {
+            if(dataCodigos.RowCount == 0)
+            {
+                cbDescuento.Enabled = true;
+                txtFolio.Enabled = true;
+                cbCajero.Enabled = true;
+            }
             lbContadorArticulos.Text = dataCodigos.RowCount.ToString();
             CalcularTotales();
         }
@@ -593,33 +704,99 @@ namespace Punto_de_Venta_Cornejo
 
         private void txtDescripcion_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.F4)
+            //if (e.KeyCode == Keys.F4)
+            //{
+            //    if (txtDescripcion.Text != string.Empty)
+            //    {
+            //        Form overlay = new Form();
+
+            //        // Configuración del Overlay:
+            //        overlay.StartPosition = FormStartPosition.Manual;
+            //        overlay.FormBorderStyle = FormBorderStyle.None;
+            //        overlay.Opacity = 0.70;           // 70% de opacidad (oscuro)
+            //        overlay.BackColor = Color.Black;
+            //        overlay.Size = this.Size;          // Mismo tamaño que el Formulario Padre
+            //        overlay.Location = this.Location;  // Misma posición que el Formulario Padre
+
+            //        // 2. Mostrar el Overlay
+            //        overlay.Show();
+            //        SearchArticle searchArticle = new SearchArticle();
+            //        searchArticle.txtDescripcion.Text = txtDescripcion.Text;
+            //        searchArticle.ShowDialog(overlay);
+            //        overlay.Close();
+            //        if (searchArticle.ArticuloSelectedClave != null)
+            //        {
+            //            txtCodigo.Text = searchArticle.ArticuloSelectedClave;
+            //            txtDescripcion.Text = searchArticle.NombreSelected;
+            //            e.SuppressKeyPress = true;
+            //            txtUnidades.Focus();
+            //        }
+            //    }
+            //}
+        }
+
+        private void btnGuardar_Click(object sender, EventArgs e)
+        {
+            if (dataCodigos.RowCount != 0)
             {
-                if (txtDescripcion.Text != string.Empty)
+                DialogResult result = MessageBox.Show("¿Deseas guardar la venta?", "Guardar Venta", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                if (result == DialogResult.No)
                 {
-                    Form overlay = new Form();
+                    return;
+                }
+                var sb = new StringBuilder();
+                for (int i = 0; i < dataCodigos.RowCount; ++i)
+                {
+                    sb.AppendLine($"{dataCodigos.Rows[i].Cells[1].Value}, {dataCodigos.Rows[i].Cells[3].Value}");
+                }
+                File.WriteAllText($"C:\\FoliosVentas\\Venta_{txtFolio.Text}.txt", sb.ToString(), Encoding.UTF8);
 
-                    // Configuración del Overlay:
-                    overlay.StartPosition = FormStartPosition.Manual;
-                    overlay.FormBorderStyle = FormBorderStyle.None;
-                    overlay.Opacity = 0.70;           // 70% de opacidad (oscuro)
-                    overlay.BackColor = Color.Black;
-                    overlay.Size = this.Size;          // Mismo tamaño que el Formulario Padre
-                    overlay.Location = this.Location;  // Misma posición que el Formulario Padre
+                MessageBox.Show("Archivo guardado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                return;
+            }
+            dataCodigos.DataSource = null;
+            // 1. Limpiar la tabla de datos (asumiendo que dt es tu DataTable enlazado)
+            if (dt != null)
+            {
+                dt.Clear();
+            }
+            dataCodigos.Rows.Clear();
+            txtFolio.Clear();
+            txtCodigo.Clear();
+            txtUnidades.Clear();
+            txtDescripcion.Clear();
+            lbContadorArticulos.Text = "0";
+            lbSubtotal.Text = "$0.00";
+            lbDescuento.Text = "$0.00";
+            lbImpuesto.Text = "$0.00";
+            lbTotal.Text = "$0.00";
+            idCodigos = 0;
+            txtFolio.Focus();
+            CargarTablaDataTable();
+        }
 
-                    // 2. Mostrar el Overlay
-                    overlay.Show();
-                    SearchArticle searchArticle = new SearchArticle();
-                    searchArticle.txtDescripcion.Text = txtDescripcion.Text;
-                    searchArticle.ShowDialog(overlay);
-                    overlay.Close();
-                    if(searchArticle.ArticuloSelectedClave != null)
-                    {
-                        txtCodigo.Text = searchArticle.ArticuloSelectedClave;
-                        txtDescripcion.Text = searchArticle.NombreSelected;
-                        e.SuppressKeyPress = true;
-                        txtUnidades.Focus();
-                    }
+        private void cbCajero_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            e.KeyChar = char.ToUpper(e.KeyChar);
+        }
+
+        private void cbDescuento_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            e.KeyChar = char.ToUpper(e.KeyChar);
+        }
+
+        private void cbDescuento_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                if (cbDescuento.Text != string.Empty)
+                {
+                    e.SuppressKeyPress = true;
+                    txtCodigo.Focus();
                 }
             }
         }

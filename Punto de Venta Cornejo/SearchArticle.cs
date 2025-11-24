@@ -90,7 +90,7 @@ namespace Punto_de_Venta_Cornejo
 
         private void dataCodigos_KeyDown(object sender, KeyEventArgs e)
         {
-            if(dataCodigos.RowCount > 0)
+            if (dataCodigos.RowCount > 0)
             {
                 if (e.KeyCode == Keys.Enter)
                 {
@@ -100,7 +100,27 @@ namespace Punto_de_Venta_Cornejo
                     PrecioSelected = Convert.ToDecimal(dataCodigos.CurrentRow.Cells[2].Value);
                     this.Close();
                 }
+                if (e.KeyCode == Keys.Escape)
+                {
+                    this.Close();
+                }
             }
         }
+
+        private void btnAceptar_Click(object sender, EventArgs e)
+        {
+            if (dataCodigos.RowCount > 0)
+            {
+                if(dataCodigos.CurrentRow != null)
+                {
+                    ArticuloSelectedClave = dataCodigos.CurrentRow.Cells[0].Value.ToString();
+                    NombreSelected = dataCodigos.CurrentRow.Cells[1].Value.ToString();
+                    PrecioSelected = Convert.ToDecimal(dataCodigos.CurrentRow.Cells[2].Value);
+                    this.Close();
+
+                }
+            }
+        }
+    
     }
 }

@@ -116,15 +116,16 @@
             // 
             cbDescuento.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold);
             cbDescuento.FormattingEnabled = true;
-            cbDescuento.Items.AddRange(new object[] { "Seleccione una opción...", "VARIOS", "V30", "V37", "V40" });
+            cbDescuento.Items.AddRange(new object[] { "VARIOS", "V30", "V37", "V40" });
             cbDescuento.Location = new Point(156, 96);
             cbDescuento.Margin = new Padding(0);
             cbDescuento.Name = "cbDescuento";
             cbDescuento.RightToLeft = RightToLeft.No;
             cbDescuento.Size = new Size(278, 28);
-            cbDescuento.TabIndex = 8;
+            cbDescuento.TabIndex = 3;
             cbDescuento.SelectedIndexChanged += cbDescuento_SelectedIndexChanged;
-            cbDescuento.SelectionChangeCommitted += cbDescuento_SelectionChangeCommitted;
+            cbDescuento.KeyDown += cbDescuento_KeyDown;
+            cbDescuento.KeyPress += cbDescuento_KeyPress;
             // 
             // lbCliente
             // 
@@ -176,7 +177,7 @@
             txtUnidades.Location = new Point(713, 160);
             txtUnidades.Name = "txtUnidades";
             txtUnidades.Size = new Size(188, 33);
-            txtUnidades.TabIndex = 5;
+            txtUnidades.TabIndex = 6;
             txtUnidades.KeyDown += txtUnidades_KeyDown;
             txtUnidades.KeyPress += txtUnidades_KeyPress;
             // 
@@ -184,11 +185,12 @@
             // 
             txtDescripcion.BorderStyle = BorderStyle.FixedSingle;
             txtDescripcion.CharacterCasing = CharacterCasing.Upper;
+            txtDescripcion.Enabled = false;
             txtDescripcion.Font = new Font("Segoe UI", 14.25F);
             txtDescripcion.Location = new Point(215, 160);
             txtDescripcion.Name = "txtDescripcion";
             txtDescripcion.Size = new Size(482, 33);
-            txtDescripcion.TabIndex = 4;
+            txtDescripcion.TabIndex = 5;
             txtDescripcion.KeyDown += txtDescripcion_KeyDown;
             // 
             // txtCodigo
@@ -198,7 +200,7 @@
             txtCodigo.Location = new Point(12, 160);
             txtCodigo.Name = "txtCodigo";
             txtCodigo.Size = new Size(188, 33);
-            txtCodigo.TabIndex = 3;
+            txtCodigo.TabIndex = 4;
             txtCodigo.KeyDown += txtCodigo_KeyDown;
             // 
             // cbCajero
@@ -214,6 +216,7 @@
             cbCajero.Size = new Size(278, 28);
             cbCajero.TabIndex = 2;
             cbCajero.KeyDown += cbCajero_KeyDown;
+            cbCajero.KeyPress += cbCajero_KeyPress;
             // 
             // lbCajero
             // 
@@ -295,6 +298,7 @@
             btnGuardar.TabIndex = 9;
             btnGuardar.Text = "Finalizar Venta";
             btnGuardar.UseVisualStyleBackColor = false;
+            btnGuardar.Click += btnGuardar_Click;
             // 
             // panelLateral
             // 
@@ -577,6 +581,7 @@
             // Column5
             // 
             dataGridViewCellStyle5.Alignment = DataGridViewContentAlignment.MiddleRight;
+            dataGridViewCellStyle5.Format = "0.####";
             Column5.DefaultCellStyle = dataGridViewCellStyle5;
             Column5.HeaderText = "Precio";
             Column5.Name = "Column5";
@@ -733,6 +738,7 @@
         private Label label5;
         private Label lbContadorArticulos;
         private Label label10;
+        private Panel panel1;
         private DataGridViewTextBoxColumn Column1;
         private DataGridViewTextBoxColumn Column2;
         private DataGridViewTextBoxColumn Column3;
@@ -740,6 +746,5 @@
         private DataGridViewTextBoxColumn Column5;
         private DataGridViewTextBoxColumn Column6;
         private DataGridViewTextBoxColumn Column7;
-        private Panel panel1;
     }
 }
